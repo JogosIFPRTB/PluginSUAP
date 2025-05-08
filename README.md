@@ -43,7 +43,7 @@ Este projeto fornece dois **Bookmarklets** úteis para professores do IFPR acess
 
 ## ✉️ Funcionalidade Extra
 
-O botão “Enviar SEPAE” abre o Gmail com um e-mail pronto para sepae.tb@ifpr.edu.br, contendo os alunos abaixo do limite de frequência ou com conceito D.
+O botão “Enviar SEPAE” abre o Gmail com um e-mail pronto para o email da sepae.tb, contendo os alunos abaixo do limite de frequência ou com conceito D.
 
 ## 🛠️ Requisitos
 
