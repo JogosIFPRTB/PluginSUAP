@@ -33,17 +33,12 @@
   linhas.forEach(tr => {
     const nomeEl = tr.querySelector("td a[href*='/edu/aluno/']");
     const nome = nomeEl ? nomeEl.textContent.trim() : "Aluno não identificado";
-    const inputs = tr.querySelectorAll("input[type='text']");
-    let totalFaltas = 0;
 
-    // Soma as faltas e marca os inputs com faltas em vermelho claro
-    inputs.forEach(input => {
-      const val = parseInt(input.value);
-      if (!isNaN(val)) {
-        totalFaltas += val;
-        if (val > 0) input.style.backgroundColor = "#ffcccc";
-      }
-    });
+    // Coleta faltas diretamente do texto da última coluna
+    const statusEl = tr.querySelector("td.text-start span.status-info");
+    const textoStatus = statusEl ? statusEl.textContent.trim() : "";
+    const matchFaltas = textoStatus.match(/(\d+)\s+falta/);
+    const totalFaltas = matchFaltas ? parseInt(matchFaltas[1]) : 0;
 
     const frequencia = totalAulas > 0 ? ((1 - totalFaltas / totalAulas) * 100).toFixed(2) : "0.00";
     let cor = "white";
