@@ -1,6 +1,6 @@
 # Painel de Faltas e Conceitos - SUAP IFPR
 
-Este projeto fornece dois **Bookmarklets** úteis para professores do IFPR acessarem rapidamente **resumos de faltas** e **conceitos dos alunos** diretamente no SUAP.
+Este projeto fornece três **Bookmarklets** úteis para professores do IFPR acessarem rapidamente **resumos de faltas**, **conceitos dos alunos** e **boletim destacado** diretamente no SUAP.
 
 ## 🔍 O que são esses painéis?
 
