@@ -1,162 +1,175 @@
-// Painel de Resumo de Faltas por Aluno com Destque Visual e Envio por Gmail
-// Desenvolvido para ser executado no console de páginas do IFPR que exibem as faltas dos alunos
+// ===================================================================================
+// SCRIPT DE ANÁLISE DE FALTAS - v2.1 (Padrão Moderno)
+// ===================================================================================
 
-// Remove painel anterior, se existir, para evitar duplicação
-const painelAntigo = document.getElementById("painelFaltasResumo");
-if (painelAntigo) painelAntigo.remove();
+(function() {
 
-// Coleta o número total de aulas ministradas a partir do painel de informações do curso
-const aulasMinistradasEl = Array.from(document.querySelectorAll(".list-item dt"))
-  .find(el => el.textContent.trim() === "Aulas Ministradas");
-const totalAulas = aulasMinistradasEl
-  ? parseInt(aulasMinistradasEl.nextElementSibling.textContent.trim().split(" de ")[0])
-  : 0;
+    const painelAntigo = document.getElementById("painelFaltasResumo");
+    if (painelAntigo) painelAntigo.remove();
 
-// Define limites de alerta para faltas
-const limiteFaltas = totalAulas * 0.25;             // 25% de faltas
-const alertaLaranja = limiteFaltas - 2;             // 2 antes do limite
+    // --- INICIALIZAÇÃO E CONFIGURAÇÕES ---
+    const cores = {
+        LIMITE: "#fa5252",
+        ALERTA: "#ffd43b",
+        PADRAO_BOTAO: "#5c9ded"
+    };
 
-// Coleta dados do curso, disciplina e professor
-const cursoEl = Array.from(document.querySelectorAll(".list-item dt"))
-  .find(el => el.textContent.trim() === "Curso");
-const nomeCursoCompleto = cursoEl ? cursoEl.nextElementSibling.textContent.trim().split(" - ")[1] : "";
-const nomeCurso = nomeCursoCompleto.replace(/\s*\(Campus.*?\)/i, "").trim();
-const disciplinaH2 = document.querySelector(".title-container h2");
-const nomeDisciplina = disciplinaH2 ? disciplinaH2.textContent.trim().split(" - ")[2] : "";
-const profEl = Array.from(document.querySelectorAll(".list-item dt"))
-  .find(el => el.textContent.trim() === "Professores");
-const nomeProfessor = profEl ? profEl.nextElementSibling.textContent.trim().split(" (")[0] : "";
+    const aulasMinistradasEl = Array.from(document.querySelectorAll(".list-item dt"))
+        .find(el => el.textContent.trim() === "Aulas Ministradas");
+    const totalAulas = aulasMinistradasEl ?
+        parseInt(aulasMinistradasEl.nextElementSibling.textContent.trim().split(" de ")[0]) :
+        0;
 
-// Inicializa arrays de controle de alunos
-const alunos = [];             // Todos os alunos com faltas
-const alunosVermelhos = [];    // Apenas alunos com frequência abaixo de 75%
-
-// Coleta todas as linhas da tabela de faltas
-const linhas = document.querySelectorAll("#table_faltas tbody tr");
-
-linhas.forEach(tr => {
-  // Extrai nome do aluno
-  const nomeEl = tr.querySelector("td a[href*='/edu/aluno/']");
-  const nome = nomeEl ? nomeEl.textContent.trim() : "Aluno não identificado";
-
-  // Soma de faltas a partir dos campos input (caso existam)
-  const inputs = tr.querySelectorAll("input[type='text']");
-  let faltasInputs = 0;
-  inputs.forEach(input => {
-    const val = parseInt(input.value);
-    if (!isNaN(val)) {
-      faltasInputs += val;
-      if (val > 0) input.style.backgroundColor = "#ffcccc";
+    if (totalAulas === 0) {
+        alert("Não foi possível determinar o 'Total de Aulas Ministradas' a partir da página. O script não pode continuar.");
+        return;
     }
-  });
+    
+    const limiteFaltas = totalAulas * 0.25;
+    const alertaLaranja = limiteFaltas > 2 ? limiteFaltas - 2 : limiteFaltas - 1;
 
-  // Alternativa: coleta o texto de faltas direto do status na célula final
-  let faltasTexto = 0;
-  const statusSpan = tr.querySelector("td.text-start span.status");
-  if (statusSpan) {
-    const match = statusSpan.textContent.match(/(\d+)\s+falta/);
-    if (match) {
-      faltasTexto = parseInt(match[1]);
+    // --- EXTRAÇÃO DE DADOS ---
+    const cursoEl = Array.from(document.querySelectorAll(".list-item dt")).find(el => el.textContent.trim() === "Curso");
+    const nomeCursoCompleto = cursoEl ? cursoEl.nextElementSibling.textContent.trim().split(" - ")[1] : "";
+    const nomeCurso = nomeCursoCompleto.replace(/\s*\(Campus.*?\)/i, "").trim();
+    const disciplinaH2 = document.querySelector(".title-container h2");
+    const nomeDisciplina = disciplinaH2 ? disciplinaH2.textContent.trim().split(" - ")[2] : "";
+    const profEl = Array.from(document.querySelectorAll(".list-item dt")).find(el => el.textContent.trim() === "Professores");
+    const nomeProfessor = profEl ? profEl.nextElementSibling.textContent.trim().split(" (")[0] : "";
+
+    const alunos = [];
+    // MUDANÇA 1: Lista unificada para os alunos que precisam de atenção.
+    const alunosParaEmail = [];
+
+    // --- LÓGICA PRINCIPAL: ANÁLISE DAS FALTAS ---
+    const linhas = document.querySelectorAll("#table_faltas tbody tr");
+
+    linhas.forEach(tr => {
+        const nomeEl = tr.querySelector("td a[href*='/edu/aluno/']");
+        if (!nomeEl) return;
+        
+        const nome = nomeEl.textContent.trim();
+        const inputs = tr.querySelectorAll("input[type='text']");
+        let faltasInputs = 0;
+        inputs.forEach(input => {
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val)) {
+                faltasInputs += val;
+                // MUDANÇA 2: Melhoria de contraste no campo de input.
+                if (val > 0) {
+                    input.style.backgroundColor = "#ffe8e8";
+                    input.style.color = "#c92a2a"; // Vermelho escuro para o texto
+                    input.style.fontWeight = "bold";   // Texto em negrito
+                }
+            }
+        });
+
+        let faltasTexto = 0;
+        const statusSpan = tr.querySelector("td.text-start span.status");
+        if (statusSpan) {
+            const match = statusSpan.textContent.match(/(\d+)\s+falta/);
+            if (match) faltasTexto = parseInt(match[1], 10);
+        }
+
+        const totalFaltas = Math.max(faltasInputs, faltasTexto);
+        if (totalFaltas === 0) return;
+
+        const frequencia = ((1 - totalFaltas / totalAulas) * 100).toFixed(2);
+        const alunoInfo = { nome, total: totalFaltas, frequencia, cor: "white" };
+
+        if (totalFaltas > limiteFaltas) {
+            tr.style.border = `2px solid ${cores.LIMITE}`;
+            alunoInfo.cor = cores.LIMITE;
+            alunosParaEmail.push(alunoInfo); // Adiciona à lista do e-mail
+        } else if (totalFaltas > alertaLaranja) {
+            tr.style.border = `2px solid ${cores.ALERTA}`;
+            alunoInfo.cor = cores.ALERTA;
+            alunosParaEmail.push(alunoInfo); // Adiciona também os em alerta à lista do e-mail
+        }
+
+        alunos.push(alunoInfo);
+    });
+
+    alunos.sort((a, b) => b.total - a.total);
+    // Ordena também a lista do e-mail para consistência.
+    alunosParaEmail.sort((a, b) => b.total - a.total);
+
+    // --- CRIAÇÃO DO PAINEL DE RESULTADOS ---
+    const painel = document.createElement("div");
+    painel.id = "painelFaltasResumo";
+    painel.style = `
+        position:fixed; top:10px; right:10px; z-index:9999;
+        background:#1e1e1e; color:white; border:1px solid #555; border-radius:8px;
+        padding:15px; width:380px; max-height:95vh; overflow-y:auto;
+        font-family: Arial, sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    `;
+
+    painel.innerHTML = `<h3 style='margin-top:0; margin-bottom:10px;'>📋 Resumo de Faltas<br><small style="font-weight:normal; color:#ccc;">${nomeCurso} - ${nomeDisciplina}</small></h3>`;
+    painel.innerHTML += `<p style="margin:0 0 10px 0; font-size:12px; color:#ccc;">Total de Aulas: ${totalAulas} | Limite de Faltas (25%): ${limiteFaltas.toFixed(0)}</p>`;
+    
+    if (alunos.length === 0) {
+        painel.innerHTML += `<p style="color:${cores.ALERTA};">Nenhum aluno com faltas registradas.</p>`;
+    } else {
+        let textoCopiar = `Resumo de faltas da disciplina\n${nomeDisciplina}\n${nomeCurso}\n(Total de aulas: ${totalAulas})\n\n`;
+        const ul = document.createElement("ul");
+        ul.style.paddingLeft = "20px";
+        ul.style.margin = "0";
+
+        alunos.forEach(aluno => {
+            const li = document.createElement("li");
+            li.style.color = aluno.cor;
+            li.style.marginBottom = '5px';
+            li.textContent = `${aluno.nome} - ${aluno.total} faltas (${aluno.frequencia}%)`;
+            ul.appendChild(li);
+        });
+        textoCopiar += ul.innerText;
+        painel.appendChild(ul);
+        
+        const containerBotoes = document.createElement("div");
+        containerBotoes.style.marginTop = "15px";
+        containerBotoes.style.borderTop = "1px solid #444";
+        containerBotoes.style.paddingTop = "10px";
+
+        const botaoCopiar = document.createElement("button");
+        botaoCopiar.textContent = "📋 Copiar Resumo";
+        botaoCopiar.style = `padding:8px 12px; border:none; border-radius:5px; background-color:${cores.PADRAO_BOTAO}; color:#fff; cursor:pointer;`;
+        botaoCopiar.onclick = () => {
+            navigator.clipboard.writeText(textoCopiar).then(() => {
+                botaoCopiar.textContent = "✅ Copiado!";
+                setTimeout(() => { botaoCopiar.textContent = "📋 Copiar Resumo"; }, 2000);
+            });
+        };
+        containerBotoes.appendChild(botaoCopiar);
+
+        // O botão agora aparece se houver QUALQUER aluno na lista de e-mail.
+        if (alunosParaEmail.length > 0) {
+            const botaoGmail = document.createElement("button");
+            botaoGmail.textContent = "📨 Enviar SEPAE";
+            botaoGmail.style = `margin-left:10px; padding:8px 12px; border:none; border-radius:5px; background-color:#28a745; color:#fff; cursor:pointer;`;
+            botaoGmail.onclick = () => {
+                // MUDANÇA 1: Assunto e corpo do e-mail atualizados.
+                const assunto = encodeURIComponent(`Alunos com baixa frequência ou em risco - ${nomeDisciplina}`);
+                const corpo = encodeURIComponent(
+                    `Prezados,\n\nSegue a lista de alunos da disciplina ${nomeDisciplina}, curso ${nomeCurso}, que estão com baixa frequência ou em situação de alerta (próximos ao limite de 25% de faltas):\n\n` +
+                    alunosParaEmail.map(a => `- ${a.nome}: ${a.total} faltas (${a.frequencia}% de frequência)`).join("\n") +
+                    `\n\nAtenciosamente,\n${nomeProfessor}`
+                );
+                const url = `https://mail.google.com/mail/?view=cm&fs=1&to=sepae.tb@ifpr.edu.br&su=${assunto}&body=${corpo}`;
+                window.open(url, "_blank");
+            };
+            containerBotoes.appendChild(botaoGmail);
+        }
+        painel.appendChild(containerBotoes);
     }
-  }
+    
+    const botaoFechar = document.createElement("button");
+    botaoFechar.textContent = "❌";
+    botaoFechar.style = `position:absolute; top:5px; right:8px; background:transparent; color:#aaa; border:none; font-size:18px; cursor:pointer;`;
+    botaoFechar.onmouseover = () => { botaoFechar.style.color = 'white'; };
+    botaoFechar.onmouseout = () => { botaoFechar.style.color = '#aaa'; };
+    botaoFechar.onclick = () => painel.remove();
+    painel.appendChild(botaoFechar);
 
-  // Usa o maior valor entre os inputs e o status-texto para determinar o total
-  const totalFaltas = Math.max(faltasInputs, faltasTexto);
+    document.body.appendChild(painel);
 
-  // Calcula frequência com base no total de aulas ministradas
-  const frequencia = totalAulas > 0 ? ((1 - totalFaltas / totalAulas) * 100).toFixed(2) : "0.00";
-  let cor = "white";
-
-  // Aplica destaque de acordo com o total de faltas
-  if (totalFaltas > limiteFaltas) {
-    tr.style.border = "2px solid red";
-    cor = "red";
-    alunosVermelhos.push({ nome, total: totalFaltas, frequencia });
-  } else if (totalFaltas > alertaLaranja) {
-    tr.style.border = "2px solid orange";
-    cor = "orange";
-  }
-
-  // Armazena o aluno na lista geral se tiver faltas
-  if (totalFaltas > 0) {
-    alunos.push({ nome, total: totalFaltas, frequencia, cor });
-  }
-});
-
-// Criação do painel flutuante com os dados
-const painel = document.createElement("div");
-painel.id = "painelFaltasResumo";
-painel.style = `
-  position:fixed;top:10px;right:10px;z-index:9999;background:#000;
-  border:2px solid #000;border-radius:8px;padding:12px;width:380px;
-  max-height:90vh;overflow-y:auto;color:white;font-family:Arial,sans-serif
-`;
-
-// Cabeçalho do painel
-painel.innerHTML = `
-  <h3 style='margin-top:0;'>📋 Resumo de Faltas<br>
-  <small>${nomeCurso} - ${nomeDisciplina}</small></h3>
-`;
-
-// Texto para copiar
-let textoCopiar = `Resumo de faltas da disciplina\n${nomeDisciplina}\n${nomeCurso}\n(total de aulas: ${totalAulas})\n`;
-
-const ul = document.createElement("ul");
-ul.style.paddingLeft = "20px";
-
-// Lista todos os alunos com faltas
-alunos.forEach((aluno, i) => {
-  const li = document.createElement("li");
-  li.textContent = `${aluno.nome} - ${aluno.total} faltas - ${aluno.frequencia}%`;
-  li.style.color = aluno.cor;
-  ul.appendChild(li);
-  textoCopiar += `${i + 1}. ${aluno.nome} - ${aluno.total} faltas - ${aluno.frequencia}%\n`;
-});
-
-painel.appendChild(ul);
-
-// Botão para copiar o conteúdo do painel para a área de transferência
-const botaoCopiar = document.createElement("button");
-botaoCopiar.textContent = `📋 Copiar`;
-botaoCopiar.style = `
-  margin-top:10px;padding:6px 10px;border:none;border-radius:5px;
-  background-color:#0066cc;color:#fff;cursor:pointer
-`;
-botaoCopiar.onclick = () => {
-  navigator.clipboard.writeText(textoCopiar).then(() => {
-    botaoCopiar.textContent = "✅ Copiado!";
-    setTimeout(() => botaoCopiar.textContent = `📋 Copiar`, 2000);
-  });
-};
-painel.appendChild(botaoCopiar);
-
-// Botão para envio automático via Gmail para o SEPAE
-const botaoGmail = document.createElement("button");
-botaoGmail.textContent = "📨 Enviar SEPAE";
-botaoGmail.style = `
-  margin-top:10px;margin-left:10px;padding:6px 10px;
-  background:#28a745;color:#fff;border:none;border-radius:5px;cursor:pointer
-`;
-botaoGmail.onclick = () => {
-  const assunto = encodeURIComponent("Alunos com baixa frequência");
-  const corpo = encodeURIComponent(
-    `Prezados,\n\nSolicito verificação da seguinte lista de alunos da disciplina ${nomeDisciplina}, curso ${nomeCurso}, que estão com frequência abaixo de 75%:\n\n` +
-    alunosVermelhos.map((a, i) => `${i + 1}. ${a.nome} - ${a.total} faltas - ${a.frequencia}% de frequência`).join("\n") +
-    `\n\nAtenciosamente,\n${nomeProfessor}`
-  );
-  const url = `https://mail.google.com/mail/?view=cm&fs=1&to=sepae.tb@ifpr.edu.br&su=${assunto}&body=${corpo}`;
-  window.open(url, "_blank");
-};
-painel.appendChild(botaoGmail);
-
-// Botão para fechar o painel
-const botaoFechar = document.createElement("button");
-botaoFechar.textContent = "❌ Fechar";
-botaoFechar.style = `
-  margin-top:10px;margin-left:10px;padding:6px 10px;
-  background:#990000;color:#fff;border:none;border-radius:5px;cursor:pointer
-`;
-botaoFechar.onclick = () => painel.remove();
-painel.appendChild(botaoFechar);
-
-document.body.appendChild(painel);
+})();
