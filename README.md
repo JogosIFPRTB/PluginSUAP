@@ -33,6 +33,15 @@ Este projeto fornece dois **Bookmarklets** úteis para professores do IFPR acess
 
    ```
 
+#### 🟪 Boletim Destacado
+
+- Acesse seu navegador e adicione qualquer página aos favoritos.
+- No campo Nome, renomeie o título como: `📋 Faltas SUAP` .
+- No campo do **URL**, cole o código fornecido abaixo (totalmente minificado).
+   ```javascript
+   javascript:(function(){const o={A:"#5c9ded",B:"#40c057",C:"#ffd43b",D:"#fa5252",BAIXA_FREQUENCIA:"#fa5252"};document.querySelectorAll("table.bordered tbody span").forEach(e=>{const t=e.textContent.trim().toUpperCase();if(o[t]){e.style.backgroundColor=o[t],e.style.color="C"===t?"black":"white",e.style.padding="3px 8px",e.style.borderRadius="5px",e.style.fontWeight="bold",e.style.display="inline-block",e.style.minWidth="25px",e.style.textAlign="center";if("D"===t){const t=e.closest("tr");if(t){const r=t.querySelector('td[headers="th_disciplina"]');r&&(r.style.backgroundColor=o.D,r.style.color="white",r.style.fontWeight="bold")}}}}),document.querySelectorAll('td[headers="th_frequencia"]').forEach(e=>{try{const t=parseFloat(e.textContent.trim().replace("%","").replace(",","."))-75;!isNaN(t)&&t<0&&(e.style.backgroundColor=o.BAIXA_FREQUENCIA,e.style.color="white",e.style.fontWeight="bold")}catch(t){console.error("Erro ao analisar a célula de frequência:",e,t)}})})();
+   ```
+
 ### 2. Acessar o SUAP
 
 - Vá até o SUAP, acesse **Meus Diários**, aba de **Registro de Faltas** ou **Registro de Conceitos**.
