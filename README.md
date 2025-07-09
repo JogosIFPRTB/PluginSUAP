@@ -5,7 +5,7 @@ Este projeto fornece dois **Bookmarklets** úteis para professores do IFPR acess
 ## 🔍 O que são esses painéis?
 
 - **Painel de Faltas**: mostra alunos com faltas, destacando aqueles com mais de 25% de faltas ou próximos ao limite, permitindo copiar a lista ou enviar e-mail direto ao SEPAE.
-- **Painel de Conceitos**: mostra alunos com conceitos A, B, C e D, destacando os com D e permitindo copiar a lista ou o envio direto ao SEPAE via Gmail.
+- **Painel de Conceitos**: mostra alunos com conceitos A, B, C e D, destacando os conceitos e permitindo copiar a lista ou o envio direto ao SEPAE via Gmail.
 
 ---
 
